@@ -183,6 +183,593 @@ revoke all on function public.public_job_lookup(text, text) from public;
 grant execute on function public.public_job_lookup(text) to anon, authenticated;
 grant execute on function public.public_job_lookup(text, text) to anon, authenticated;
 
+-- Owner onboarding: create tenant + first owner atomically. No client may
+-- insert its own membership directly. The function derives user_id from auth.uid().
+create or replace function private.create_business_with_owner(p_name text, p_slug text)
+returns table (business_id uuid, business_name text, business_slug text)
+language plpgsql security definer set search_path = ''
+as $
+declare
+  v_user_id uuid := (select auth.uid());
+  v_business_id uuid;
+  v_name text := btrim(p_name);
+  v_slug text := lower(btrim(p_slug));
+begin
+  if v_user_id is null then
+    raise exception 'Authentication required';
+  end if;
+  if length(v_name) < 2 or length(v_name) > 100 then
+    raise exception 'Business name must be between 2 and 100 characters';
+  end if;
+  if v_slug !~ '^[a-z0-9]+(-[a-z0-9]+)*
+-- without changing the function call shape. It requires one business context.
+create or replace function private.create_staff_job(
+  p_customer_name text, p_phone text, p_vehicle text, p_plate text,
+  p_service text, p_status public.job_status, p_notes text default null
+)
+returns setof public.jobs
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_business_id uuid;
+  v_next_number bigint;
+  v_tracking_code text;
+begin
+  if (select auth.uid()) is null then
+    raise exception 'Authentication required';
+  end if;
+
+  v_business_id := private.current_single_business_id();
+  if not private.has_business_role(
+    v_business_id, array['owner', 'manager', 'staff']::text[]
+  ) then
+    raise exception 'Authorized business staff access required';
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended(v_business_id::text || ':tracking-code', 0)
+  );
+
+  select coalesce(
+    max(nullif(regexp_replace(j.tracking_code, '\D', '', 'g'), '')::bigint),
+    999
+  ) + 1
+  into v_next_number
+  from public.jobs j
+  where j.business_id = v_business_id
+    and j.tracking_code ~ '^LAV-[0-9]+$';
+
+  v_tracking_code := 'LAV-' || v_next_number::text;
+
+  return query
+  insert into public.jobs (
+    business_id, tracking_code, customer_name, phone, vehicle, plate,
+    service, status, notes
+  )
+  values (
+    v_business_id, v_tracking_code, trim(p_customer_name), trim(p_phone),
+    trim(p_vehicle), upper(trim(p_plate)), trim(p_service), p_status,
+    coalesce(nullif(trim(p_notes), ''), '')
+  )
+  returning *;
+end;
+$$;
+
+revoke all on function private.create_staff_job(
+  text, text, text, text, text, public.job_status, text
+) from public, anon;
+grant execute on function private.create_staff_job(
+  text, text, text, text, text, public.job_status, text
+) to authenticated;
+
+-- SECURITY INVOKER wrapper. Authorization occurs inside the private function.
+create or replace function public.create_staff_job(
+  p_customer_name text, p_phone text, p_vehicle text, p_plate text,
+  p_service text, p_status public.job_status, p_notes text default null
+)
+returns setof public.jobs
+language sql set search_path = ''
+as $$
+  select * from private.create_staff_job(
+    p_customer_name, p_phone, p_vehicle, p_plate, p_service, p_status, p_notes
+  );
+$$;
+
+revoke all on function public.create_staff_job(
+  text, text, text, text, text, public.job_status, text
+) from public, anon;
+grant execute on function public.create_staff_job(
+  text, text, text, text, text, public.job_status, text
+) to authenticated;
+
+-- Drop every old policy on these tenant tables. Policies are OR-combined;
+-- leaving one legacy USING(true) policy would defeat tenant isolation.
+do $$
+declare v_policy record;
+begin
+  for v_policy in
+    select schemaname, tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in ('businesses', 'business_memberships', 'jobs', 'job_status_history')
+  loop
+    execute format(
+      'drop policy if exists %I on %I.%I',
+      v_policy.policyname, v_policy.schemaname, v_policy.tablename
+    );
+  end loop;
+end;
+$$;
+
+alter table public.businesses enable row level security;
+alter table public.business_memberships enable row level security;
+alter table public.jobs enable row level security;
+alter table public.job_status_history enable row level security;
+
+revoke all on public.businesses from anon, authenticated;
+revoke all on public.business_memberships from anon, authenticated;
+revoke all on public.jobs from anon, authenticated;
+revoke all on public.job_status_history from anon, authenticated;
+
+grant select on public.businesses to authenticated;
+grant update (name, slug) on public.businesses to authenticated;
+grant select, insert, update, delete on public.business_memberships to authenticated;
+grant select on public.jobs to authenticated;
+grant update (status, notes, updated_at) on public.jobs to authenticated;
+grant select on public.job_status_history to authenticated;
+
+create policy businesses_member_read
+on public.businesses for select to authenticated
+using ((select private.is_business_member(id)));
+
+create policy businesses_owner_manager_update
+on public.businesses for update to authenticated
+using ((select private.has_business_role(id, array['owner', 'manager']::text[])))
+with check ((select private.has_business_role(id, array['owner', 'manager']::text[])));
+
+create policy memberships_member_read
+on public.business_memberships for select to authenticated
+using (
+  user_id = (select auth.uid())
+  or (select private.has_business_role(business_id, array['owner', 'manager']::text[]))
+);
+
+create policy memberships_owner_insert
+on public.business_memberships for insert to authenticated
+with check ((select private.has_business_role(business_id, array['owner']::text[])));
+
+create policy memberships_owner_update
+on public.business_memberships for update to authenticated
+using (
+  user_id <> (select auth.uid())
+  and (select private.has_business_role(business_id, array['owner']::text[]))
+)
+with check (
+  user_id <> (select auth.uid())
+  and (select private.has_business_role(business_id, array['owner']::text[]))
+);
+
+create policy memberships_owner_delete
+on public.business_memberships for delete to authenticated
+using (
+  user_id <> (select auth.uid())
+  and (select private.has_business_role(business_id, array['owner']::text[]))
+);
+
+create policy jobs_business_member_read
+on public.jobs for select to authenticated
+using ((select private.is_business_member(business_id)));
+
+create policy jobs_business_staff_insert
+on public.jobs for insert to authenticated
+with check ((
+  select private.has_business_role(
+    business_id, array['owner', 'manager', 'staff']::text[]
+  )
+));
+
+create policy jobs_business_staff_update
+on public.jobs for update to authenticated
+using ((
+  select private.has_business_role(
+    business_id, array['owner', 'manager', 'staff']::text[]
+  )
+))
+with check ((
+  select private.has_business_role(
+    business_id, array['owner', 'manager', 'staff']::text[]
+  )
+));
+
+-- History is read-only to API clients; the trusted status trigger writes it.
+create policy job_history_business_member_read
+on public.job_status_history for select to authenticated
+using (
+  exists (
+    select 1 from public.jobs j
+    where j.id = job_id
+      and (select private.is_business_member(j.business_id))
+  )
+);
+
+-- Trigger function is privileged only for automatic status-history inserts.
+create or replace function private.jobs_log_status()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+begin
+  if tg_op = 'INSERT' or new.status is distinct from old.status then
+    insert into public.job_status_history (job_id, status)
+    values (new.id, new.status);
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function private.jobs_log_status() from public, anon, authenticated;
+-- Remove both triggers before dropping their legacy exposed-schema function.
+drop trigger if exists jobs_log_status_ins on public.jobs;
+drop trigger if exists jobs_log_status_upd on public.jobs;
+revoke all on function public.jobs_log_status() from public, anon, authenticated;
+drop function if exists public.jobs_log_status();
+
+create trigger jobs_log_status_ins after insert on public.jobs
+for each row execute function private.jobs_log_status();
+create trigger jobs_log_status_upd after update on public.jobs
+for each row execute function private.jobs_log_status();
+
+commit;
+
+-- MANUAL VERIFICATION — run only after an explicitly approved application:
+-- select id, name, slug from public.businesses where slug = 'lavage-international';
+-- select count(*) as jobs_without_business from public.jobs where business_id is null;
+-- select tablename, policyname, qual, with_check from pg_policies
+-- where schemaname = 'public'
+-- and tablename in ('jobs', 'job_status_history') order by tablename, policyname;
+-- select * from public.public_job_lookup('lavage-international', 'LAV-1001');
+--
+-- OWNER BOOTSTRAP — only after inspecting Auth and verifying the exact owner UUID:
+-- insert into public.business_memberships (business_id, user_id, role)
+-- select b.id, '<VERIFIED_AUTH_USER_UUID>'::uuid, 'owner'
+-- from public.businesses b where b.slug = 'lavage-international';
+ or length(v_slug) > 60 then
+    raise exception 'Business URL must use lowercase letters, numbers and single hyphens';
+  end if;
+
+  insert into public.businesses (name, slug)
+  values (v_name, v_slug)
+  returning id into v_business_id;
+
+  insert into public.business_memberships (business_id, user_id, role)
+  values (v_business_id, v_user_id, 'owner');
+
+  return query select v_business_id, v_name, v_slug;
+exception
+  when unique_violation then
+    raise exception 'That business URL is already in use. Choose another one.';
+end;
+$;
+
+revoke all on function private.create_business_with_owner(text, text) from public, anon;
+grant execute on function private.create_business_with_owner(text, text) to authenticated;
+
+create or replace function public.create_business_with_owner(p_name text, p_slug text)
+returns table (business_id uuid, business_name text, business_slug text)
+language sql set search_path = ''
+as $
+  select * from private.create_business_with_owner(p_name, p_slug);
+$;
+revoke all on function public.create_business_with_owner(text, text) from public, anon;
+grant execute on function public.create_business_with_owner(text, text) to authenticated;
+
+-- Workspace-scoped job creation. The business_id comes from the selected
+-- workspace, but membership and role are revalidated inside the database.
+create or replace function private.create_staff_job(
+  p_business_id uuid,
+  p_customer_name text, p_phone text, p_vehicle text, p_plate text,
+  p_service text, p_status public.job_status, p_notes text default null
+)
+returns setof public.jobs
+language plpgsql security definer set search_path = ''
+as $
+declare
+  v_next_number bigint;
+  v_tracking_code text;
+begin
+  if (select auth.uid()) is null then
+    raise exception 'Authentication required';
+  end if;
+  if not private.has_business_role(
+    p_business_id, array['owner', 'manager', 'staff']::text[]
+  ) then
+    raise exception 'You do not have staff access to this business';
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended(p_business_id::text || ':tracking-code', 0)
+  );
+
+  select coalesce(
+    max(nullif(regexp_replace(j.tracking_code, '\D', '', 'g'), '')::bigint),
+    999
+  ) + 1
+  into v_next_number
+  from public.jobs j
+  where j.business_id = p_business_id
+    and j.tracking_code ~ '^LAV-[0-9]+
+-- without changing the function call shape. It requires one business context.
+create or replace function private.create_staff_job(
+  p_customer_name text, p_phone text, p_vehicle text, p_plate text,
+  p_service text, p_status public.job_status, p_notes text default null
+)
+returns setof public.jobs
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_business_id uuid;
+  v_next_number bigint;
+  v_tracking_code text;
+begin
+  if (select auth.uid()) is null then
+    raise exception 'Authentication required';
+  end if;
+
+  v_business_id := private.current_single_business_id();
+  if not private.has_business_role(
+    v_business_id, array['owner', 'manager', 'staff']::text[]
+  ) then
+    raise exception 'Authorized business staff access required';
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended(v_business_id::text || ':tracking-code', 0)
+  );
+
+  select coalesce(
+    max(nullif(regexp_replace(j.tracking_code, '\D', '', 'g'), '')::bigint),
+    999
+  ) + 1
+  into v_next_number
+  from public.jobs j
+  where j.business_id = v_business_id
+    and j.tracking_code ~ '^LAV-[0-9]+$';
+
+  v_tracking_code := 'LAV-' || v_next_number::text;
+
+  return query
+  insert into public.jobs (
+    business_id, tracking_code, customer_name, phone, vehicle, plate,
+    service, status, notes
+  )
+  values (
+    v_business_id, v_tracking_code, trim(p_customer_name), trim(p_phone),
+    trim(p_vehicle), upper(trim(p_plate)), trim(p_service), p_status,
+    coalesce(nullif(trim(p_notes), ''), '')
+  )
+  returning *;
+end;
+$$;
+
+revoke all on function private.create_staff_job(
+  text, text, text, text, text, public.job_status, text
+) from public, anon;
+grant execute on function private.create_staff_job(
+  text, text, text, text, text, public.job_status, text
+) to authenticated;
+
+-- SECURITY INVOKER wrapper. Authorization occurs inside the private function.
+create or replace function public.create_staff_job(
+  p_customer_name text, p_phone text, p_vehicle text, p_plate text,
+  p_service text, p_status public.job_status, p_notes text default null
+)
+returns setof public.jobs
+language sql set search_path = ''
+as $$
+  select * from private.create_staff_job(
+    p_customer_name, p_phone, p_vehicle, p_plate, p_service, p_status, p_notes
+  );
+$$;
+
+revoke all on function public.create_staff_job(
+  text, text, text, text, text, public.job_status, text
+) from public, anon;
+grant execute on function public.create_staff_job(
+  text, text, text, text, text, public.job_status, text
+) to authenticated;
+
+-- Drop every old policy on these tenant tables. Policies are OR-combined;
+-- leaving one legacy USING(true) policy would defeat tenant isolation.
+do $$
+declare v_policy record;
+begin
+  for v_policy in
+    select schemaname, tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in ('businesses', 'business_memberships', 'jobs', 'job_status_history')
+  loop
+    execute format(
+      'drop policy if exists %I on %I.%I',
+      v_policy.policyname, v_policy.schemaname, v_policy.tablename
+    );
+  end loop;
+end;
+$$;
+
+alter table public.businesses enable row level security;
+alter table public.business_memberships enable row level security;
+alter table public.jobs enable row level security;
+alter table public.job_status_history enable row level security;
+
+revoke all on public.businesses from anon, authenticated;
+revoke all on public.business_memberships from anon, authenticated;
+revoke all on public.jobs from anon, authenticated;
+revoke all on public.job_status_history from anon, authenticated;
+
+grant select on public.businesses to authenticated;
+grant update (name, slug) on public.businesses to authenticated;
+grant select, insert, update, delete on public.business_memberships to authenticated;
+grant select on public.jobs to authenticated;
+grant update (status, notes) on public.jobs to authenticated;
+grant select on public.job_status_history to authenticated;
+
+create policy businesses_member_read
+on public.businesses for select to authenticated
+using ((select private.is_business_member(id)));
+
+create policy businesses_owner_manager_update
+on public.businesses for update to authenticated
+using ((select private.has_business_role(id, array['owner', 'manager']::text[])))
+with check ((select private.has_business_role(id, array['owner', 'manager']::text[])));
+
+create policy memberships_member_read
+on public.business_memberships for select to authenticated
+using (
+  user_id = (select auth.uid())
+  or (select private.has_business_role(business_id, array['owner', 'manager']::text[]))
+);
+
+create policy memberships_owner_insert
+on public.business_memberships for insert to authenticated
+with check ((select private.has_business_role(business_id, array['owner']::text[])));
+
+create policy memberships_owner_update
+on public.business_memberships for update to authenticated
+using (
+  user_id <> (select auth.uid())
+  and (select private.has_business_role(business_id, array['owner']::text[]))
+)
+with check (
+  user_id <> (select auth.uid())
+  and (select private.has_business_role(business_id, array['owner']::text[]))
+);
+
+create policy memberships_owner_delete
+on public.business_memberships for delete to authenticated
+using (
+  user_id <> (select auth.uid())
+  and (select private.has_business_role(business_id, array['owner']::text[]))
+);
+
+create policy jobs_business_member_read
+on public.jobs for select to authenticated
+using ((select private.is_business_member(business_id)));
+
+create policy jobs_business_staff_insert
+on public.jobs for insert to authenticated
+with check ((
+  select private.has_business_role(
+    business_id, array['owner', 'manager', 'staff']::text[]
+  )
+));
+
+create policy jobs_business_staff_update
+on public.jobs for update to authenticated
+using ((
+  select private.has_business_role(
+    business_id, array['owner', 'manager', 'staff']::text[]
+  )
+))
+with check ((
+  select private.has_business_role(
+    business_id, array['owner', 'manager', 'staff']::text[]
+  )
+));
+
+-- History is read-only to API clients; the trusted status trigger writes it.
+create policy job_history_business_member_read
+on public.job_status_history for select to authenticated
+using (
+  exists (
+    select 1 from public.jobs j
+    where j.id = job_id
+      and (select private.is_business_member(j.business_id))
+  )
+);
+
+-- Trigger function is privileged only for automatic status-history inserts.
+create or replace function private.jobs_log_status()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+begin
+  if tg_op = 'INSERT' or new.status is distinct from old.status then
+    insert into public.job_status_history (job_id, status)
+    values (new.id, new.status);
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function private.jobs_log_status() from public, anon, authenticated;
+-- Remove both triggers before dropping their legacy exposed-schema function.
+drop trigger if exists jobs_log_status_ins on public.jobs;
+drop trigger if exists jobs_log_status_upd on public.jobs;
+revoke all on function public.jobs_log_status() from public, anon, authenticated;
+drop function if exists public.jobs_log_status();
+
+create trigger jobs_log_status_ins after insert on public.jobs
+for each row execute function private.jobs_log_status();
+create trigger jobs_log_status_upd after update on public.jobs
+for each row execute function private.jobs_log_status();
+
+commit;
+
+-- MANUAL VERIFICATION — run only after an explicitly approved application:
+-- select id, name, slug from public.businesses where slug = 'lavage-international';
+-- select count(*) as jobs_without_business from public.jobs where business_id is null;
+-- select tablename, policyname, qual, with_check from pg_policies
+-- where schemaname = 'public'
+-- and tablename in ('jobs', 'job_status_history') order by tablename, policyname;
+-- select * from public.public_job_lookup('lavage-international', 'LAV-1001');
+--
+-- OWNER BOOTSTRAP — only after inspecting Auth and verifying the exact owner UUID:
+-- insert into public.business_memberships (business_id, user_id, role)
+-- select b.id, '<VERIFIED_AUTH_USER_UUID>'::uuid, 'owner'
+-- from public.businesses b where b.slug = 'lavage-international';
+;
+
+  v_tracking_code := 'LAV-' || v_next_number::text;
+
+  return query
+  insert into public.jobs (
+    business_id, tracking_code, customer_name, phone, vehicle, plate,
+    service, status, notes
+  )
+  values (
+    p_business_id, v_tracking_code, trim(p_customer_name), trim(p_phone),
+    trim(p_vehicle), upper(trim(p_plate)), trim(p_service), p_status,
+    coalesce(nullif(trim(p_notes), ''), '')
+  )
+  returning *;
+end;
+$;
+
+revoke all on function private.create_staff_job(
+  uuid, text, text, text, text, text, public.job_status, text
+) from public, anon;
+grant execute on function private.create_staff_job(
+  uuid, text, text, text, text, text, public.job_status, text
+) to authenticated;
+
+create or replace function public.create_staff_job(
+  p_business_id uuid,
+  p_customer_name text, p_phone text, p_vehicle text, p_plate text,
+  p_service text, p_status public.job_status, p_notes text default null
+)
+returns setof public.jobs
+language sql set search_path = ''
+as $
+  select * from private.create_staff_job(
+    p_business_id, p_customer_name, p_phone, p_vehicle, p_plate,
+    p_service, p_status, p_notes
+  );
+$;
+revoke all on function public.create_staff_job(
+  uuid, text, text, text, text, text, public.job_status, text
+) from public, anon;
+grant execute on function public.create_staff_job(
+  uuid, text, text, text, text, text, public.job_status, text
+) to authenticated;
+
 -- Keep the existing RPC argument list so the current staff UI can be migrated
 -- without changing the function call shape. It requires one business context.
 create or replace function private.create_staff_job(
