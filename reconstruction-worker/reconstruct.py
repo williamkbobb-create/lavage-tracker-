@@ -199,7 +199,7 @@ class Pipeline:
                 "--output_path", str(simplified),
                 "--MeshSimplification.target_face_ratio", "0.25",
             ], [simplified])
-            textured = dense / "textured.obj"
+            textured = dense / "textured.obj"\n            texture_prefix = dense / "textured"
             self.run_stage("mesh_texturing", [
                 self.colmap, "mesh_texturer",
                 "--workspace_path", str(dense),
