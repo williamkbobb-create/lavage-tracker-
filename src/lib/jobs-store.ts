@@ -174,7 +174,7 @@ export async function lookupJob(code: string): Promise<Job | null> {
  * Supabase RLS permissions on the jobs table.
  */
 export async function listJobs(businessId?: string): Promise<StaffJob[]> {
-  let query = (supabase as any)
+  let query = (supabase as unknown as SupabaseClient)
     .from("jobs")
     .select(`
       *,
