@@ -31,6 +31,12 @@ export async function signIn(email: string, password: string) {
   if (error) throw new Error(error.message);
 }
 
+export async function signUp(email: string, password: string) {
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) throw new Error(error.message);
+  return { hasSession: Boolean(data.session), email: data.user?.email ?? email };
+}
+
 export async function signOut() {
   await supabase.auth.signOut();
 }
