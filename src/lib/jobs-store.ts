@@ -174,28 +174,23 @@ export async function lookupJob(code: string): Promise<Job | null> {
  * Supabase RLS permissions on the jobs table.
  */
 export async function listJobs(businessId?: string): Promise<StaffJob[]> {
-  const { data, error } = await supabase
+  let query = (supabase as any)
     .from("jobs")
-    .select(
-      `
+    .select(`
       *,
       job_status_history (
         status,
         changed_at
       )
-    `,
-    )
+    `)
     .order("created_at", { ascending: false });
-  const scopedQuery = businessId ? supabase.from("jobs").select(`
-      *,
-      job_status_history ( status, changed_at )
-    `).eq("business_id" as never, businessId).order("created_at", { ascending: false }) : null;
-  const result = scopedQuery ? await scopedQuery : { data, error };
-  if (result.error) {
-    console.error("Failed to load staff jobs:", result.error);
+  if (businessId) query = query.eq("business_id", businessId);
+  const { data, error } = await query;
+  if (error) {
+    console.error("Failed to load staff jobs:", error);
     throw new Error("Unable to load jobs.");
   }
-  return ((result.data ?? []) as unknown as DatabaseJob[]).map(toStaffJob);
+  return ((data ?? []) as DatabaseJob[]).map(toStaffJob);
 }
 /**
  * Creates a job through the PostgreSQL RPC.
