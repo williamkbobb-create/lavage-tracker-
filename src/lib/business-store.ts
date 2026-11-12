@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
 export type Workspace = {
@@ -31,7 +32,7 @@ export function useWorkspaces(enabled = true) {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: queryError } = await (supabase as any)
+      const { data, error: queryError } = await (supabase as unknown as SupabaseClient)
         .from("business_memberships")
         .select("business_id, role, businesses!inner(id, name, slug)")
         .order("created_at", { ascending: true });
