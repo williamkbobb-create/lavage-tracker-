@@ -25,6 +25,11 @@ Create a separate user with no business memberships and a user who belongs to bo
 | Business A manager | Read A business and team memberships | Allowed |
 | Business A manager | Add, update or delete memberships | Denied |
 | Business A owner | Add a membership in A | Allowed |
+| Signed-in user | Call create_business_with_owner with a valid name and unique slug | Creates exactly one business and an owner membership for auth.uid() atomically |
+| Signed-in user | Supply another user's UUID to create_business_with_owner | Not possible; RPC accepts no user_id argument |
+| Anonymous visitor | Call create_business_with_owner | Denied |
+| Non-member of A | Call workspace-scoped create_staff_job for A | Denied; no job created |
+| Business A member | Create job for selected A workspace | Allowed; generated tracking code belongs to A |
 | Business A owner | Change or delete their own membership | Denied |
 | User with no membership | Read jobs or create a job | Denied |
 | Anonymous visitor | Select jobs, history, businesses or memberships | Denied |
@@ -42,6 +47,16 @@ Create a separate user with no business memberships and a user who belongs to bo
 - A denied cross-business update leaves the original job unchanged.
 - Membership changes cannot leave a business without an owner. **This invariant needs a dedicated database constraint/trigger before production rollout.**
 
+## Application integration checks
+
+- Owner signup handles both immediate-session and email-confirmation-required Supabase Auth settings.
+- A new owner can create a business only through the atomic create_business_with_owner RPC.
+- Workspace selector shows only memberships returned for the authenticated user.
+- Staff job list filters by selected business and RLS independently enforces membership.
+- Staff job creation passes the selected business ID; database function rechecks membership and role.
+- Directly editing local workspace selection to another tenant ID grants no access.
+- The /manage route is not linked from the public/customer navigation and sends noindex metadata.
+
 ## Execution
 
 1. Review SQL and verify function signatures against the exact target schema.
@@ -54,4 +69,4 @@ Create a separate user with no business memberships and a user who belongs to bo
 
 ## Known gap
 
-The current proposal blocks an owner from changing or deleting their own membership, but it does not yet enforce the invariant that every business always has at least one owner. Add and test that safeguard before using this schema for real businesses.
+The current proposal blocks an owner from changing or deleting their own membership, but it does not yet enforce the invariant that every business always has at least one owner. Add and test that safeguard before using this schema for real businesses. The application-side owner signup and workspace selector are gated by VITE_TENANT_WORKSPACES_ENABLED; keep it false until this SQL is tested and applied. The new /manage route is not linked from the customer navigation.
