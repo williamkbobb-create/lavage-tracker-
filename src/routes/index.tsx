@@ -183,8 +183,9 @@ function HomePage() {
               <Palette className="size-6 text-[#D8B96E]" />
               <h3 className="mt-5 font-semibold">Explore the paint studio</h3>
               <p className="mt-2 text-sm leading-6 text-white/50">
-                The interactive paint studio is on the roadmap. It will let customers explore finishes and save concepts for their vehicles.
+                Open the 3D studio, rotate a concept vehicle, select body panels and experiment with paint colours.
               </p>
+              <Link to="/paint" className="mt-4 inline-flex items-center text-xs font-bold text-[#E7CC8A] hover:text-white">Open 3D Paint Studio <ArrowRight className="ml-2 size-4" /></Link>
             </article>
             <article className="rounded-2xl border border-white/10 bg-[#111416] p-6">
               <ShieldCheck className="size-6 text-[#D8B96E]" />
