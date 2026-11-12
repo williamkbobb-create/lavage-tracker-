@@ -61,17 +61,15 @@ function createSupabaseClient() {
   const SUPABASE_PUBLISHABLE_KEY =
     import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || process.env["SUPABASE_PUBLISHABLE_KEY"];
 
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ["SUPABASE_URL"] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(", ")}. Connect Supabase in Lovable Cloud.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
+  const configured = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
+  if (!configured) {
+    console.warn("[Supabase] Backend is not configured. Add SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in Render before enabling account or live tracking features.");
   }
 
-  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  return createClient<Database>(
+    SUPABASE_URL || "https://placeholder.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY || "public-anon-key",
+    {
     global: {
       fetch: createSupabaseFetch(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY),
     },
