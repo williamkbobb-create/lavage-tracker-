@@ -17,6 +17,7 @@ export const Route = createFileRoute("/manage")({
 const fieldClass = "w-full rounded-xl border border-white/15 bg-[#111719] px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-[#D8B96E]";
 
 function ManagePage() {
+  const tenantWorkspacesEnabled = import.meta.env.VITE_TENANT_WORKSPACES_ENABLED === "true";
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
   const { workspaces, loading: workspaceLoading, error: workspaceError, refresh } = useWorkspaces(Boolean(session));
@@ -28,6 +29,19 @@ function ManagePage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  if (!tenantWorkspacesEnabled) {
+    return (
+      <main className="min-h-screen bg-[#090B0D] px-4 py-12 text-[#F5F2EA]">
+        <section className="mx-auto max-w-xl rounded-2xl border border-white/10 bg-[#111416] p-7">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#D8B96E]">Private business area</p>
+          <h1 className="mt-4 text-2xl font-semibold">Business onboarding is not enabled yet.</h1>
+          <p className="mt-3 text-sm leading-6 text-white/55">This workspace requires the tenant database migration and security tests to be completed first. Existing customer tracking and staff operations remain on the current configuration.</p>
+          <a href="/" className="mt-6 inline-flex rounded-xl bg-[#D8B96E] px-5 py-3 text-sm font-bold text-[#17140D]">Return to public website</a>
+        </section>
+      </main>
+    );
+  }
 
   async function submitAuth(event: React.FormEvent) {
     event.preventDefault();
