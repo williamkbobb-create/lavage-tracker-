@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, ContactShadows } from "@react-three/drei";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, RotateCcw, ZoomIn, ZoomOut, Palette, CarFront } from "lucide-react";
+import { ArrowLeft, RotateCcw, Palette, DoorOpen } from "lucide-react";
 import * as THREE from "three";
 
 export const Route = createFileRoute("/paint")({
@@ -31,7 +31,7 @@ const initialColours: Record<Part, string> = {
 };
 const swatches = ["#c6a45b", "#f2f0e9", "#111827", "#bd2634", "#164e83", "#176b50", "#777b83", "#d9782e", "#7d5aa6", "#e6c9a2"];
 
-function CarModel({ colours, selected, onSelect }: {
+function CarModel({ colours, selected, onSelect, doorsOpen }: {
   colours: Record<Part, string>;
   selected: Part;
   onSelect: (part: Part) => void;
@@ -82,7 +82,7 @@ function CarModel({ colours, selected, onSelect }: {
           </mesh>
         </group>
       ))}
-      <mesh position={[1.78, 0.14, 0.43]}>
+      <group position={[0.05, 0.12, 0.72]} rotation={[0, doorsOpen ? -0.95 : 0, 0]}>\n        <mesh position={[0.38, 0, 0]} onClick={(e) => { e.stopPropagation(); onSelect("body"); }}>\n          <boxGeometry args={[0.78, 0.42, 0.075]} />{material("body")}\n        </mesh>\n      </group>\n      <group position={[0.05, 0.12, -0.72]} rotation={[0, doorsOpen ? 0.95 : 0, 0]}>\n        <mesh position={[0.38, 0, 0]} onClick={(e) => { e.stopPropagation(); onSelect("body"); }}>\n          <boxGeometry args={[0.78, 0.42, 0.075]} />{material("body")}\n        </mesh>\n      </group>\n      <mesh position={[0.35, 0.05, 0.27]}>\n        <boxGeometry args={[0.38, 0.48, 0.38]} /><meshStandardMaterial color="#252a30" roughness={0.85} />\n      </mesh>\n      <mesh position={[0.35, 0.05, -0.27]}>\n        <boxGeometry args={[0.38, 0.48, 0.38]} /><meshStandardMaterial color="#252a30" roughness={0.85} />\n      </mesh>\n      <mesh position={[1.78, 0.14, 0.43]}>
         <boxGeometry args={[0.035, 0.12, 0.22]} /><meshStandardMaterial color="#f8e6b0" emissive="#f8e6b0" emissiveIntensity={0.4} />
       </mesh>
       <mesh position={[1.78, 0.14, -0.43]}>
@@ -96,7 +96,7 @@ function PaintStudioPage() {
   const [mounted, setMounted] = useState(false);
   const [selected, setSelected] = useState<Part>("body");
   const [colours, setColours] = useState(initialColours);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(false);\n  const [doorsOpen, setDoorsOpen] = useState(false);
   useEffect(() => setMounted(true), []);
   const selectedColour = useMemo(() => colours[selected], [colours, selected]);
   const updateColour = (colour: string) => {
@@ -128,13 +128,13 @@ function PaintStudioPage() {
                   <ambientLight intensity={1.15} />
                   <directionalLight position={[5, 8, 5]} intensity={2.4} castShadow />
                   <pointLight position={[-5, 3, -4]} intensity={1.1} color="#d8b96e" />
-                  <CarModel colours={colours} selected={selected} onSelect={setSelected} />
+                  <CarModel colours={colours} selected={selected} onSelect={setSelected} doorsOpen={doorsOpen} />
                   <ContactShadows position={[0, -0.62, 0]} opacity={0.45} scale={8} blur={2.5} far={4} />
                   <OrbitControls enableDamping dampingFactor={0.07} minDistance={3.5} maxDistance={10} maxPolarAngle={Math.PI / 2.05} />
                 </Suspense>
               </Canvas> : <div className="flex h-full items-center justify-center text-sm text-white/45">Preparing 3D studio…</div>}
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-5 border-t border-white/10 px-4 py-4 text-[10px] text-white/45"><span>↔ Drag to rotate</span><span>⌕ Pinch / scroll to zoom</span><span>Tap a panel to select it</span></div>
+            <div className="flex flex-wrap items-center justify-center gap-3 border-t border-white/10 px-4 py-4 text-[10px] text-white/45"><span>↔ Drag to rotate</span><span>⌕ Pinch / scroll to zoom</span><span>Tap a panel to select it</span><button onClick={() => setDoorsOpen((open) => !open)} className="inline-flex items-center gap-1 rounded-full border border-[#d8b96e]/50 px-3 py-2 text-[#f2d996]"><DoorOpen className="size-3" />{doorsOpen ? "Close doors" : "Open doors"}</button></div>
           </div>
           <aside className="rounded-3xl border border-white/10 bg-[#131719] p-5">
             <div className="flex items-center gap-2 text-[#d8b96e]"><Palette className="size-4" /><span className="text-[10px] font-bold uppercase tracking-[0.2em]">Paint controls</span></div>
