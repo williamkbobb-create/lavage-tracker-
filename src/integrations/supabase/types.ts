@@ -121,7 +121,9 @@ export type Database = {
         }
       }
       public_job_lookup: {
-        Args: { p_code: string }
+        Args:
+          | { p_code: string; p_business_slug?: never }
+          | { p_code: string; p_business_slug: string }
         Returns: {
           created_at: string
           history: Json
