@@ -288,14 +288,16 @@ alter table public.business_memberships enable row level security;
 alter table public.jobs enable row level security;
 alter table public.job_status_history enable row level security;
 
-revoke all on public.businesses from anon;
-revoke all on public.business_memberships from anon;
-revoke all on public.jobs from anon;
-revoke all on public.job_status_history from anon;
+revoke all on public.businesses from anon, authenticated;
+revoke all on public.business_memberships from anon, authenticated;
+revoke all on public.jobs from anon, authenticated;
+revoke all on public.job_status_history from anon, authenticated;
 
-grant select, update on public.businesses to authenticated;
+grant select on public.businesses to authenticated;
+grant update (name, slug) on public.businesses to authenticated;
 grant select, insert, update, delete on public.business_memberships to authenticated;
-grant select, insert, update on public.jobs to authenticated;
+grant select on public.jobs to authenticated;
+grant update (status, notes) on public.jobs to authenticated;
 grant select on public.job_status_history to authenticated;
 
 create policy businesses_member_read
@@ -320,12 +322,21 @@ with check ((select private.has_business_role(business_id, array['owner']::text[
 
 create policy memberships_owner_update
 on public.business_memberships for update to authenticated
-using ((select private.has_business_role(business_id, array['owner']::text[])))
-with check ((select private.has_business_role(business_id, array['owner']::text[])));
+using (
+  user_id <> (select auth.uid())
+  and (select private.has_business_role(business_id, array['owner']::text[]))
+)
+with check (
+  user_id <> (select auth.uid())
+  and (select private.has_business_role(business_id, array['owner']::text[]))
+);
 
 create policy memberships_owner_delete
 on public.business_memberships for delete to authenticated
-using ((select private.has_business_role(business_id, array['owner']::text[])));
+using (
+  user_id <> (select auth.uid())
+  and (select private.has_business_role(business_id, array['owner']::text[]))
+);
 
 create policy jobs_business_member_read
 on public.jobs for select to authenticated
@@ -364,7 +375,7 @@ using (
 );
 
 -- Trigger function is privileged only for automatic status-history inserts.
-create or replace function public.jobs_log_status()
+create or replace function private.jobs_log_status()
 returns trigger language plpgsql security definer set search_path = ''
 as $$
 begin
@@ -376,13 +387,13 @@ begin
 end;
 $$;
 
-revoke all on function public.jobs_log_status() from public, anon, authenticated;
+revoke all on function private.jobs_log_status() from public, anon, authenticated;
 drop trigger if exists jobs_log_status_ins on public.jobs;
 create trigger jobs_log_status_ins after insert on public.jobs
-for each row execute function public.jobs_log_status();
+for each row execute function private.jobs_log_status();
 drop trigger if exists jobs_log_status_upd on public.jobs;
 create trigger jobs_log_status_upd after update on public.jobs
-for each row execute function public.jobs_log_status();
+for each row execute function private.jobs_log_status();
 
 commit;
 
