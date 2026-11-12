@@ -27,11 +27,13 @@ Do not grant every existing Auth user staff access merely to avoid the bootstrap
 3. Add owner-controlled invitations and membership management. This proposal permits membership changes by an existing owner only; manager invitations are not enabled yet.
 4. Move staff operations to the separate management hostname and enforce server-side session and role checks. Hiding a link is not an authorization boundary.
 5. Review Storage policies separately before adding vehicle photographs. Do not expose uploaded images through public buckets by default.
-6. Confirm Data API exposure for the new public tables. Supabase's October 30, 2026 change means newly created public tables may not be exposed to the Data API by default; table grants and API exposure are separate controls.
+6. Confirm Data API exposure for the new public tables. Table grants and Data API schema exposure are separate controls; verify both in the target project's settings.
 
 ## Security review checklist
 
 - [ ] No broad USING (true) or WITH CHECK (true) policy remains on tenant tables.
+- [ ] Client table grants are revoked first and only the exact required columns/operations are granted back.
+- [ ] The legacy SECURITY DEFINER trigger function is removed from the exposed public schema.
 - [ ] Anonymous users cannot directly select jobs, history, businesses, or memberships.
 - [ ] Public lookup returns only tracking code, vehicle, plate, service, status, timestamps, and public status history.
 - [ ] A member of Business A cannot read or update Business B jobs.
