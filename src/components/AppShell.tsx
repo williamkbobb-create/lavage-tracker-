@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { CarFront, Circle } from "lucide-react";
 import type { ReactNode } from "react";
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, showStaffLink = false }: { children: ReactNode; showStaffLink?: boolean }) {
   return (
     <div className="min-h-screen bg-[#0B0B0C] pb-10 text-[#F5F1E8]">
       <header className="sticky top-0 z-50 border-b border-[#C6A45B]/20 bg-[#101011]/95 px-4 py-4 backdrop-blur-xl sm:px-6">
@@ -44,12 +44,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             Track Vehicle
           </Link>
 
-          <Link
-            to="/staff"
-            className="flex-1 rounded-lg border border-transparent px-4 py-3 text-center text-xs font-semibold transition-colors hover:bg-white/[0.04] data-[status=active]:border-[#C6A45B]/40 data-[status=active]:bg-[#C6A45B]/10 data-[status=active]:text-[#E4C779] data-[status=inactive]:text-[#9C9A95]"
-          >
-            Staff Portal
-          </Link>
+          {showStaffLink && (
+            <Link
+              to="/staff"
+              className="flex-1 rounded-lg border border-transparent px-4 py-3 text-center text-xs font-semibold transition-colors hover:bg-white/[0.04] data-[status=active]:border-[#C6A45B]/40 data-[status=active]:bg-[#C6A45B]/10 data-[status=active]:text-[#E4C779] data-[status=inactive]:text-[#9C9A95]"
+            >
+              Staff Portal
+            </Link>
+          )}
         </div>
       </nav>
 
