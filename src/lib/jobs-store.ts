@@ -150,9 +150,16 @@ export async function lookupJob(code: string): Promise<Job | null> {
   if (!normalizedCode) {
     return null;
   }
-  const { data, error } = await supabase.rpc("public_job_lookup", {
-    p_code: normalizedCode,
-  });
+  // When a business slug is configured, use tenant-scoped lookup.
+  // Leave it unset during legacy single-business preview until the tenant
+  // migration has been reviewed and applied to the target Supabase project.
+  const businessSlug = import.meta.env.VITE_BUSINESS_SLUG?.trim();
+  const { data, error } = await supabase.rpc(
+    "public_job_lookup",
+    businessSlug
+      ? { p_business_slug: businessSlug, p_code: normalizedCode }
+      : { p_code: normalizedCode },
+  );
   if (error) {
     console.error("Customer job lookup failed:", error);
     throw new Error("Unable to load vehicle progress.");
