@@ -1,0 +1,68 @@
+
+name: Format Lavage Tracker source
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    name: Format six reported files
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Format only the reported files
+        run: |
+          npx prettier --write \
+            src/components/StatusTimeline.tsx \
+            src/lib/jobs-store.ts \
+            src/lib/supabase.ts \
+            src/routes/index.tsx \
+            src/routes/staff.tsx \
+            vite.config.ts
+
+      - name: Create formatting-only commit if needed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            src/components/StatusTimeline.tsx \
+            src/lib/jobs-store.ts \
+            src/lib/supabase.ts \
+            src/routes/index.tsx \
+            src/routes/staff.tsx \
+            vite.config.ts
+
+          if git diff --cached --quiet; then
+            echo "No formatting changes were needed."
+          else
+            git commit -m "Format six files reported by CI"
+            touch "$RUNNER_TEMP/format-commit-created"
+          fi
+
+      - name: Push formatting commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f "$RUNNER_TEMP/format-commit-created" ]; then
+            git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)" push origin HEAD:main
+          else
+            echo "No formatting commit to push."
+          fi
