@@ -4,10 +4,10 @@ Self-hosted reconstruction worker for HackyTech Vehicle Intelligence Engine. It 
 
 ## Modes
 
-- **Default CPU mode:** validates input, extracts/matches features, and runs sparse Structure from Motion (SfM). It writes the COLMAP database and sparse model.
-- **Optional dense mode:** pass `--dense` only on a machine with a CUDA-enabled COLMAP build and a compatible NVIDIA GPU. This runs dense MVS, fusion, meshing, simplification, and texture baking. Do not assume ordinary Render web-service compute supports this.
+- **Default CPU mode:** validates input, extracts/matches SIFT features, and runs sparse Structure from Motion (SfM). It writes the COLMAP database and sparse model.
+- **Optional dense mode:** pass `--dense` only on a machine with a COLMAP build supporting GPU dense stereo (CUDA, or a supported ROCm build) and a compatible GPU. This runs dense MVS, fusion, meshing, simplification, and texture baking. Do not assume ordinary Render web-service compute supports this.
 
-The worker deliberately does not start dense processing by default. This avoids pretending a CPU-only machine can complete COLMAP PatchMatch dense stereo.
+The worker deliberately does not start dense processing by default. Ubuntu 24.04's packaged COLMAP 3.9.1 is used for the first CPU validation image; dense GPU processing needs a separately validated GPU-enabled build.
 
 ## Requirements
 
@@ -29,13 +29,13 @@ Input accepts JPG, JPEG, and PNG. Twelve images is only a basic intake guard, no
 - `job-report.json`: machine-readable status and stage results
 - `worker.log`: command log
 - `database.db` and `sparse/`: SfM outputs
-- Dense mode additionally writes `dense/fused.ply`, meshes, and textured OBJ/MTL/texture outputs if each stage succeeds
+- Dense mode additionally writes `dense/fused.ply`, meshes, and `dense/textured/mesh.ply` with texture atlas files if each stage succeeds
 
-OBJ is not GLB. The worker does not currently export GLB/glTF, separate body panels, identify part boundaries, or rig moving parts.
+The texture stage follows COLMAP's documented output layout: `mesh_texturer --output_path dense/textured`. OBJ is not GLB. The worker does not currently export GLB/glTF, separate body panels, identify part boundaries, or rig moving parts.
 
 ## Reproducible checks
 
-The Dockerfile and GitHub Actions workflow use Ubuntu 24.04 packages to install COLMAP and Python, compile the worker, and run unit tests. Ubuntu package repositories can update over time; for bit-for-bit reproducible production images, pin the base image digest and package versions after a successful validated build.
+The Dockerfile and GitHub Actions workflow pin the Ubuntu 24.04 COLMAP package to 3.9.1-2build2 for the initial CPU validation environment, compile the worker, and run unit tests. This is a pinned package build, not a bit-for-bit immutable image; a later release image should also pin the base image digest and transitive packages.
 
 ## Security boundary
 
