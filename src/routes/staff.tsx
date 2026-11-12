@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { StaffSignIn } from "@/components/StaffSignIn";
 import { useAuth, signOut } from "@/lib/use-auth";
+import { getSelectedWorkspaceId } from "@/lib/business-store";
 import {
   SERVICES,
   STATUSES,
@@ -71,7 +72,9 @@ function StaffPage() {
 }
 
 function StaffDashboard() {
-  const { jobs, loading, error, refresh } = useStaffJobs(true);
+  const tenantWorkspacesEnabled = import.meta.env.VITE_TENANT_WORKSPACES_ENABLED === "true";
+  const selectedBusinessId = tenantWorkspacesEnabled ? getSelectedWorkspaceId() : undefined;
+  const { jobs, loading, error, refresh } = useStaffJobs(true, selectedBusinessId ?? undefined);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [created, setCreated] = useState<string | null>(null);
@@ -83,7 +86,7 @@ function StaffDashboard() {
     e.preventDefault();
 
     try {
-      const job = await createJob(form);
+      const job = await createJob(form, selectedBusinessId ?? undefined);
 
       setForm(emptyForm);
       setShowForm(false);
@@ -114,6 +117,18 @@ function StaffDashboard() {
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Could not update notes.");
     }
+  }
+
+  if (tenantWorkspacesEnabled && !selectedBusinessId) {
+    return (
+      <AppShell showStaffLink>
+        <section className="rounded-2xl border border-border bg-card p-6">
+          <h1 className="text-lg font-bold text-card-foreground">Choose a business workspace</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Select your business before viewing or registering vehicles.</p>
+          <a href="/manage" className="mt-5 inline-flex rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground">Open business workspaces</a>
+        </section>
+      </AppShell>
+    );
   }
 
   return (
