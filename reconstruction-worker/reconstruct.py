@@ -145,12 +145,12 @@ class Pipeline:
                 self.colmap, "feature_extractor",
                 "--database_path", str(database),
                 "--image_path", str(self.images),
-                "--FeatureExtraction.use_gpu", use_gpu,
+                "--SiftExtraction.use_gpu", use_gpu,
             ], [database])
             self.run_stage("exhaustive_matching", [
                 self.colmap, "exhaustive_matcher",
                 "--database_path", str(database),
-                "--FeatureMatching.use_gpu", use_gpu,
+                "--SiftMatching.use_gpu", use_gpu,
             ])
             self.run_stage("sparse_mapping", [
                 self.colmap, "mapper",
@@ -208,7 +208,7 @@ class Pipeline:
                 "--MeshSimplification.target_face_ratio", "0.25",
             ], [simplified])
             texture_prefix = dense / "textured"
-            textured = dense / "textured.obj"
+            textured = texture_prefix / "mesh.ply"
             self.run_stage("mesh_texturing", [
                 self.colmap, "mesh_texturer",
                 "--workspace_path", str(dense),
@@ -221,7 +221,7 @@ class Pipeline:
                 "fused_point_cloud": str(fused),
                 "poisson_mesh": str(mesh),
                 "simplified_mesh": str(simplified),
-                "textured_obj": str(textured),
+                "textured_mesh": str(textured),
             })
             self.log("Dense reconstruction and texturing completed. Component segmentation and GLB conversion are not included.")
             return 0
