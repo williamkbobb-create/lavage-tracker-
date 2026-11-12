@@ -1,0 +1,32 @@
+name: HVIE worker checks
+
+on:
+  push:
+    branches:
+      - feature/lavage-platform-foundation
+    paths:
+      - "reconstruction-worker/**"
+      - ".github/workflows/hvie-worker.yml"
+  pull_request:
+    branches:
+      - feature/lavage-platform-foundation
+    paths:
+      - "reconstruction-worker/**"
+      - ".github/workflows/hvie-worker.yml"
+
+jobs:
+  test-worker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install COLMAP and Python
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y colmap python3
+      - name: Verify COLMAP installation
+        run: colmap -h
+      - name: Compile worker
+        run: python3 -m py_compile reconstruction-worker/reconstruct.py
+      - name: Run worker unit tests
+        working-directory: reconstruction-worker
+        run: python3 -m unittest discover -s tests -v
