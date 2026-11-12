@@ -43,12 +43,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/staff': typeof StaffRoute
+  '/track': typeof TrackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/staff'
+  fullPaths: '/' | '/staff' | '/track'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/staff'
+  to: '/' | '/staff' | '/track'
   id: '__root__' | '/' | '/staff' | '/track'
   fileRoutesById: FileRoutesById
 }
