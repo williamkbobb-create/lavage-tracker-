@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 export const STATUSES = [
   "Car Received",
   "Inspection",
@@ -241,7 +242,7 @@ export async function createJob(input: {
     p_status: input.status,
     p_notes: notes || null,
   };
-  const { data, error } = await (supabase as any).rpc(
+  const { data, error } = await (supabase as unknown as SupabaseClient).rpc(
     "create_staff_job",
     businessId ? { ...rpcArgs, p_business_id: businessId } : rpcArgs,
   );
