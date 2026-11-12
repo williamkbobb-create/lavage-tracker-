@@ -26,7 +26,7 @@ jobs:
       - name: Verify COLMAP installation
         run: colmap -h
       - name: Compile worker
-        run: python3 -m py_compile reconstruction-worker/reconstruct.py
+        run: /usr/bin/python3 -m py_compile reconstruction-worker/reconstruct.py
       - name: Run worker unit tests
         working-directory: reconstruction-worker
-        run: python3 -m unittest discover -s tests -v
+        run: /usr/bin/python3 -m unittest discover -s tests -v
