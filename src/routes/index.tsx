@@ -183,8 +183,7 @@ function HomePage() {
               <Palette className="size-6 text-[#D8B96E]" />
               <h3 className="mt-5 font-semibold">Explore the paint studio</h3>
               <p className="mt-2 text-sm leading-6 text-white/50">
-                Discover colour ideas and save designs for a future vehicle customisation
-                experience.
+                The interactive paint studio is on the roadmap. It will let customers explore finishes and save concepts for their vehicles.
               </p>
             </article>
             <article className="rounded-2xl border border-white/10 bg-[#111416] p-6">
@@ -213,10 +212,10 @@ function HomePage() {
             </p>
           </div>
           <a
-            href="#experience"
+            href="/for-businesses"
             className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D8B96E]/40 px-6 py-4 text-sm font-semibold text-[#E7CC8A] transition hover:bg-[#D8B96E]/10"
           >
-            Explore the experience <ArrowRight className="ml-2 size-4" />
+            Explore the business platform <ArrowRight className="ml-2 size-4" />
           </a>
         </div>
       </section>
