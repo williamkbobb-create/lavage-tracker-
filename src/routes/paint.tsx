@@ -14,7 +14,7 @@ export const Route = createFileRoute("/paint")({
   component: PaintStudioPage,
 });
 
-const MODEL_URL = "https://cdn.3dassets.dev/assets/32490/v1/model.glb";
+const MODEL_URL = "https://cdn.3dassets.dev/assets/32493/v1/model.glb";
 type Finish = "body" | "wheels" | "glass" | "interior";
 const labels: Record<Finish, string> = { body: "Carrosserie", wheels: "Jantes", glass: "Vitrage", interior: "Habitacle" };
 const initial: Record<Finish, string> = { body: "#173f69", wheels: "#b8c1ca", glass: "#173044", interior: "#5b2931" };
@@ -118,7 +118,7 @@ function PaintStudioPage() {
   useEffect(() => setMounted(true), []);
   const updateColour = (colour: string) => { setColours((current) => ({ ...current, [selected]: colour })); setSaved(false); };
   const reset = () => { setColours(initial); setSelected("body"); setDoorsOpen(false); setBonnetOpen(false); setBootOpen(false); setSaved(false); };
-  const countsChanged = (counts: Record<Finish, number>) => setMaterialCounts(counts);
+  const countsChanged = setMaterialCounts;
   const selectedColour = colours[selected];
 
   return <main className="min-h-screen bg-[#080b10] text-[#f5f3ee]">
