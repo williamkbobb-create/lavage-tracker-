@@ -24,6 +24,10 @@ python3 reconstruct.py --images /private/capture/images --output /private/job-ou
 
 Input accepts JPG, JPEG, and PNG. Twelve images is only a basic intake guard, not a guarantee of coverage or reconstruction success. Capture the same stationary vehicle with overlapping viewpoints, sharp focus, stable lighting, and visible texture. Avoid moving people/vehicles in the background where possible.
 
+## Capture quality preflight
+
+`worker_quality.py` provides advisory checks for image readability, dimensions, mean brightness, and a coarse edge-energy/detail proxy. These checks can flag obviously poor inputs but cannot reliably detect camera overlap, viewpoint coverage, or guarantee focus/reconstruction quality. The report must be reviewed alongside the capture sequence.
+
 ## Outputs
 
 - `job-report.json`: machine-readable status and stage results
