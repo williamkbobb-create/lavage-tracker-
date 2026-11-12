@@ -173,7 +173,7 @@ export async function lookupJob(code: string): Promise<Job | null> {
  * This requires the authenticated user to have the appropriate
  * Supabase RLS permissions on the jobs table.
  */
-export async function listJobs(): Promise<StaffJob[]> {
+export async function listJobs(businessId?: string): Promise<StaffJob[]> {
   const { data, error } = await supabase
     .from("jobs")
     .select(
@@ -186,11 +186,16 @@ export async function listJobs(): Promise<StaffJob[]> {
     `,
     )
     .order("created_at", { ascending: false });
-  if (error) {
-    console.error("Failed to load staff jobs:", error);
+  const scopedQuery = businessId ? supabase.from("jobs").select(`
+      *,
+      job_status_history ( status, changed_at )
+    `).eq("business_id" as never, businessId).order("created_at", { ascending: false }) : null;
+  const result = scopedQuery ? await scopedQuery : { data, error };
+  if (result.error) {
+    console.error("Failed to load staff jobs:", result.error);
     throw new Error("Unable to load jobs.");
   }
-  return ((data ?? []) as DatabaseJob[]).map(toStaffJob);
+  return ((result.data ?? []) as unknown as DatabaseJob[]).map(toStaffJob);
 }
 /**
  * Creates a job through the PostgreSQL RPC.
@@ -207,7 +212,7 @@ export async function createJob(input: {
   service: string;
   status: Status;
   notes: string;
-}): Promise<StaffJob> {
+}, businessId?: string): Promise<StaffJob> {
   const customerName = input.customerName.trim();
   const phone = input.phone.trim();
   const vehicle = input.vehicle.trim();
@@ -232,7 +237,7 @@ export async function createJob(input: {
   if (!isValidStatus(input.status)) {
     throw new Error("Invalid initial status.");
   }
-  const { data, error } = await supabase.rpc("create_staff_job", {
+  const rpcArgs = {
     p_customer_name: customerName,
     p_phone: phone,
     p_vehicle: vehicle,
@@ -240,7 +245,11 @@ export async function createJob(input: {
     p_service: service,
     p_status: input.status,
     p_notes: notes || null,
-  });
+  };
+  const { data, error } = await (supabase as any).rpc(
+    "create_staff_job",
+    businessId ? { ...rpcArgs, p_business_id: businessId } : rpcArgs,
+  );
   if (error) {
     console.error("Failed to create job:", error);
     if (error.code === "23505" || error.message.toLowerCase().includes("duplicate")) {
@@ -342,7 +351,7 @@ export async function updateNotes(id: string, notes: string): Promise<StaffJob> 
   }
   return toStaffJob(data as DatabaseJob);
 }
-export function useStaffJobs(enabled = true) {
+export function useStaffJobs(enabled = true, businessId?: string) {
   const [jobs, setJobs] = useState<StaffJob[]>([]);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
@@ -353,7 +362,7 @@ export function useStaffJobs(enabled = true) {
     setLoading(true);
     setError(null);
     try {
-      const result = await listJobs();
+      const result = await listJobs(businessId);
       setJobs(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to load jobs.";
@@ -361,7 +370,7 @@ export function useStaffJobs(enabled = true) {
     } finally {
       setLoading(false);
     }
-  }, [enabled]);
+  }, [enabled, businessId]);
   useEffect(() => {
     if (enabled) {
       void refresh();
