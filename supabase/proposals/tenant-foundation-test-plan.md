@@ -45,7 +45,7 @@ Create a separate user with no business memberships and a user who belongs to bo
 - New job creation assigns the selected business and generates a tenant-local tracking code without collisions.
 - Status changes still create history records.
 - A denied cross-business update leaves the original job unchanged.
-- Membership changes cannot leave a business without an owner. **This invariant needs a dedicated database constraint/trigger before production rollout.**
+- Membership changes cannot leave a business without an owner. The v2 draft adds a trigger; test concurrent owner demotions/deletions and membership moves before production rollout.
 
 ## Application integration checks
 
@@ -58,6 +58,10 @@ Create a separate user with no business memberships and a user who belongs to bo
 - The /manage route is not linked from the public/customer navigation and sends noindex metadata.
 
 ## Execution
+
+- Use `tenant-foundation-v2.sql` as the current review draft; the earlier `tenant-foundation.sql` is explicitly superseded and must not be applied.
+- Verify the v2 SQL against a clean disposable database initialized from the exact current base schema; syntax and behavior are not yet proven.
+- Test that deleting/demoting/moving the last owner is rejected, while doing so when another owner exists succeeds.
 
 1. Review SQL and verify function signatures against the exact target schema.
 2. Apply only to a disposable project or local Supabase database.
