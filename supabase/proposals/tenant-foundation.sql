@@ -388,12 +388,14 @@ end;
 $$;
 
 revoke all on function private.jobs_log_status() from public, anon, authenticated;
--- Remove the legacy SECURITY DEFINER trigger function from the exposed schema.
-revoke all on function public.jobs_log_status() from public, anon, authenticated;
+-- Remove both triggers before dropping their legacy exposed-schema function.
 drop trigger if exists jobs_log_status_ins on public.jobs;
+drop trigger if exists jobs_log_status_upd on public.jobs;
+revoke all on function public.jobs_log_status() from public, anon, authenticated;
+drop function if exists public.jobs_log_status();
+
 create trigger jobs_log_status_ins after insert on public.jobs
 for each row execute function private.jobs_log_status();
-drop trigger if exists jobs_log_status_upd on public.jobs;
 create trigger jobs_log_status_upd after update on public.jobs
 for each row execute function private.jobs_log_status();
 
