@@ -55,7 +55,7 @@ function StaffPage() {
 
   if (authLoading) {
     return (
-      <AppShell>
+      <AppShell showStaffLink>
         <p className="text-xs uppercase tracking-widest text-muted-foreground">
           Loading…
         </p>
@@ -65,7 +65,7 @@ function StaffPage() {
 
   if (!signedIn) {
     return (
-      <AppShell>
+      <AppShell showStaffLink>
         <StaffSignIn />
       </AppShell>
     );
@@ -127,7 +127,7 @@ function StaffDashboard() {
   }
 
   return (
-    <AppShell>
+    <AppShell showStaffLink>
       <section className="grid grid-cols-2 gap-3">
         <button
           type="button"
