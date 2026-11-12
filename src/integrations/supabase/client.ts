@@ -66,19 +66,23 @@ function createSupabaseClient() {
     console.warn("[Supabase] Backend is not configured. Add SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in Render before enabling account or live tracking features.");
   }
 
+  const resolvedUrl = SUPABASE_URL || "https://placeholder.supabase.co";
+  const resolvedKey = SUPABASE_PUBLISHABLE_KEY || "public-anon-key";
+
   return createClient<Database>(
-    SUPABASE_URL || "https://placeholder.supabase.co",
-    SUPABASE_PUBLISHABLE_KEY || "public-anon-key",
+    resolvedUrl,
+    resolvedKey,
     {
-    global: {
-      fetch: createSupabaseFetch(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY),
+      global: {
+        fetch: createSupabaseFetch(resolvedUrl, resolvedKey),
     },
     auth: {
       storage: brokeredPreviewStorage(),
       persistSession: true,
-      autoRefreshToken: true,
+        autoRefreshToken: true,
+      },
     },
-  });
+  );
 }
 
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
