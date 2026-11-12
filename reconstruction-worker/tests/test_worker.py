@@ -5,11 +5,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 MODULE_PATH = Path(__file__).parents[1] / "reconstruct.py"
+import sys
+sys.path.insert(0, str(MODULE_PATH.parent))
 SPEC = importlib.util.spec_from_file_location("hvie_reconstruct", MODULE_PATH)
 worker = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(worker)
-import sys
-sys.path.insert(0, str(MODULE_PATH.parent))
 
 
 class IntakeTests(unittest.TestCase):
