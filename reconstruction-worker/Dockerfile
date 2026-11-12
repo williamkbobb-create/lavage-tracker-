@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      colmap python3 ca-certificates \
+      colmap=3.9.1-2build2 python3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/hvie
