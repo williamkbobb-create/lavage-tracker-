@@ -13,7 +13,7 @@ if (!isSupabaseConfigured && typeof window !== "undefined") {
 
 /**
  * Browser Supabase client using the publishable/anon key only.
- * All access is protected by Row Level Security in supabase/schema.sql.
+ * Access must be protected by the reviewed tenant RLS migration before onboarding businesses.
  */
 export const supabase = createClient(
   url ?? "https://placeholder.supabase.co",
