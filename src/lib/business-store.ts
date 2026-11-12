@@ -67,7 +67,7 @@ export async function createBusiness(name: string, slug: string): Promise<Worksp
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(cleanSlug)) {
     throw new Error("Use lowercase letters, numbers and single hyphens in the business URL.");
   }
-  const { data, error } = await (supabase as any).rpc("create_business_with_owner", {
+  const { data, error } = await (supabase as unknown as SupabaseClient).rpc("create_business_with_owner", {
     p_name: cleanName,
     p_slug: cleanSlug,
   });
