@@ -8,6 +8,8 @@ MODULE_PATH = Path(__file__).parents[1] / "reconstruct.py"
 SPEC = importlib.util.spec_from_file_location("hvie_reconstruct", MODULE_PATH)
 worker = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(worker)
+import sys
+sys.path.insert(0, str(MODULE_PATH.parent))
 
 
 class IntakeTests(unittest.TestCase):
@@ -62,6 +64,19 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual([x["name"] for x in pipeline.report["stages"]],
                              ["feature_extraction", "exhaustive_matching", "sparse_mapping"])
             self.assertTrue((output / "job-report.json").exists())
+
+
+
+    def test_quality_report_reads_dimensions_and_is_advisory(self):
+        from PIL import Image
+        from worker_quality import analyze_images
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vehicle.jpg"
+            Image.new("RGB", (1024, 768), (120, 120, 120)).save(path)
+            report = analyze_images([path])
+            self.assertEqual(report["image_count"], 1)
+            self.assertEqual(report["images"][0]["width"], 1024)
+            self.assertIn("do not assess camera overlap", report["interpretation"])
 
 
 if __name__ == "__main__":
