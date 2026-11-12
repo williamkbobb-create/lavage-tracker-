@@ -1,4 +1,3 @@
-
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -28,8 +27,7 @@ export const Route = createFileRoute("/staff")({
       { property: "og:title", content: "Staff Dashboard | Lavage International" },
       {
         property: "og:description",
-        content:
-          "Register vehicle jobs and update their progress at Lavage International.",
+        content: "Register vehicle jobs and update their progress at Lavage International.",
       },
     ],
   }),
@@ -56,9 +54,7 @@ function StaffPage() {
   if (authLoading) {
     return (
       <AppShell showStaffLink>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground">
-          Loading…
-        </p>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">Loading…</p>
       </AppShell>
     );
   }
@@ -96,9 +92,7 @@ function StaffDashboard() {
 
       await refresh();
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Could not create job."
-      );
+      setActionError(err instanceof Error ? err.message : "Could not create job.");
     }
   }
 
@@ -108,9 +102,7 @@ function StaffDashboard() {
       setActionError("");
       await refresh();
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Could not update status."
-      );
+      setActionError(err instanceof Error ? err.message : "Could not update status.");
     }
   }
 
@@ -120,9 +112,7 @@ function StaffDashboard() {
       setActionError("");
       await refresh();
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Could not update notes."
-      );
+      setActionError(err instanceof Error ? err.message : "Could not update notes.");
     }
   }
 
@@ -138,9 +128,7 @@ function StaffDashboard() {
           className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-4 text-center active:scale-95"
         >
           <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-primary/10">
-            <span className="text-xl font-bold text-primary">
-              {showForm ? "×" : "+"}
-            </span>
+            <span className="text-xl font-bold text-primary">{showForm ? "×" : "+"}</span>
           </div>
           <span className="text-[10px] font-bold uppercase text-card-foreground">
             {showForm ? "Close" : "New Job"}
@@ -149,13 +137,9 @@ function StaffDashboard() {
 
         <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-4 text-center">
           <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-warning/10">
-            <span className="text-sm font-bold text-warning">
-              {active.length}
-            </span>
+            <span className="text-sm font-bold text-warning">{active.length}</span>
           </div>
-          <span className="text-[10px] font-bold uppercase text-card-foreground">
-            Active
-          </span>
+          <span className="text-[10px] font-bold uppercase text-card-foreground">Active</span>
         </div>
       </section>
 
@@ -203,9 +187,7 @@ function StaffDashboard() {
             className={fieldClass}
             placeholder="Customer name"
             value={form.customerName}
-            onChange={(e) =>
-              setForm({ ...form, customerName: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, customerName: e.target.value })}
           />
 
           <input
@@ -248,9 +230,7 @@ function StaffDashboard() {
           <select
             className={fieldClass}
             value={form.status}
-            onChange={(e) =>
-              setForm({ ...form, status: e.target.value as Status })
-            }
+            onChange={(e) => setForm({ ...form, status: e.target.value as Status })}
           >
             {STATUSES.map((status) => (
               <option key={status} value={status}>
@@ -282,12 +262,7 @@ function StaffDashboard() {
         </p>
 
         {jobs.map((job) => (
-          <JobCard
-            key={job.id}
-            job={job}
-            onStatus={changeStatus}
-            onNotes={saveNotes}
-          />
+          <JobCard key={job.id} job={job} onStatus={changeStatus} onNotes={saveNotes} />
         ))}
       </section>
     </AppShell>
@@ -310,9 +285,7 @@ function JobCard({
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-card-foreground">
-            {job.vehicle}
-          </p>
+          <p className="truncate text-sm font-bold text-card-foreground">{job.vehicle}</p>
 
           <p className="truncate text-[11px] text-muted-foreground">
             {job.customerName} · {job.phone}
@@ -322,16 +295,12 @@ function JobCard({
             {job.plate} · {job.trackingCode}
           </p>
 
-          <p className="mt-1 text-[11px] text-card-foreground">
-            {job.service}
-          </p>
+          <p className="mt-1 text-[11px] text-card-foreground">{job.service}</p>
         </div>
 
         <span
           className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold uppercase ${
-            job.status === "Completed"
-              ? "bg-success/10 text-success"
-              : "bg-primary/10 text-primary"
+            job.status === "Completed" ? "bg-success/10 text-success" : "bg-primary/10 text-primary"
           }`}
         >
           {job.status}
@@ -343,9 +312,7 @@ function JobCard({
 
         <select
           value={job.status}
-          onChange={(e) =>
-            void onStatus(job.id, e.target.value as Status)
-          }
+          onChange={(e) => void onStatus(job.id, e.target.value as Status)}
           className="h-12 w-full rounded-xl border border-border bg-background px-3 text-sm font-bold uppercase tracking-wide text-primary focus:outline-none"
         >
           {STATUSES.map((status) => (

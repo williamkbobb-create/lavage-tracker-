@@ -1,9 +1,14 @@
-
 import { Link } from "@tanstack/react-router";
 import { CarFront, Circle } from "lucide-react";
 import type { ReactNode } from "react";
 
-export function AppShell({ children, showStaffLink = false }: { children: ReactNode; showStaffLink?: boolean }) {
+export function AppShell({
+  children,
+  showStaffLink = false,
+}: {
+  children: ReactNode;
+  showStaffLink?: boolean;
+}) {
   return (
     <div className="min-h-screen bg-[#0B0B0C] pb-10 text-[#F5F1E8]">
       <header className="sticky top-0 z-50 border-b border-[#C6A45B]/20 bg-[#101011]/95 px-4 py-4 backdrop-blur-xl sm:px-6">
@@ -55,9 +60,7 @@ export function AppShell({ children, showStaffLink = false }: { children: ReactN
         </div>
       </nav>
 
-      <main className="mx-auto max-w-5xl space-y-8 px-4 pt-6 sm:px-6 sm:pt-8">
-        {children}
-      </main>
+      <main className="mx-auto max-w-5xl space-y-8 px-4 pt-6 sm:px-6 sm:pt-8">{children}</main>
     </div>
   );
 }
