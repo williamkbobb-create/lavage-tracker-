@@ -1,3 +1,8 @@
+-- SUPERSEDED REVIEW DRAFT — DO NOT APPLY.
+-- This historical draft contains duplicated/malformed SQL and is retained only
+-- for audit history. Review tenant-foundation-v2.sql instead. V2 is also a
+-- proposal only and has NOT been executed or validated against a live database.
+
 begin;
 
 -- PROPOSAL ONLY. Do not apply until the target project is active, backed up,
