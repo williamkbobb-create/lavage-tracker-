@@ -12,6 +12,9 @@ export function useAuth() {
       if (!mounted) return;
       setSession(data.session);
       setLoading(false);
+    }).catch((error: unknown) => {
+      console.error("Unable to restore the authentication session:", error);
+      if (mounted) setLoading(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
