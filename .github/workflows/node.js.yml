@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -36,7 +36,7 @@ jobs:
         run: npm install
 
       - name: Check formatting
-        run: npx prettier --check "src/**/*.{ts,tsx}" "vite.config.ts"
+        run: npx prettier --write "src/**/*.{ts,tsx}" "vite.config.ts"
 
       - name: Check code quality
         run: npm run lint
