@@ -58,10 +58,11 @@ def discover_images(folder: Path) -> list[Path]:
 
 
 class Pipeline:
-    def __init__(self, images: Path, output: Path, colmap: str):
+    def __init__(self, images: Path, output: Path, colmap: str, run_dense: bool):
         self.images = images.resolve()
         self.output = output.resolve()
         self.colmap = colmap
+        self.run_dense = run_dense
         self.log_path = self.output / "worker.log"
         self.report = {
             "engine": "HackyTech Vehicle Intelligence Engine",
@@ -164,6 +165,13 @@ class Pipeline:
             if not models:
                 raise RuntimeError("COLMAP did not produce a sparse model; check image overlap and texture.")
             model = models[0]
+            self.report["outputs"] = {"database": str(database), "sparse_model": str(model)}
+            if not self.run_dense:
+                self.report["status"] = "sparse_complete"
+                self.report["limitations"].append("Dense MVS, meshing, and texturing were not run. Use a CUDA-enabled COLMAP build and compatible NVIDIA GPU, then run with --dense.")
+                self.log("Sparse reconstruction completed. Dense stages were not requested.")
+                return 0
+
             dense.mkdir(exist_ok=True)
             self.run_stage("image_undistortion", [
                 self.colmap, "image_undistorter",
@@ -199,24 +207,23 @@ class Pipeline:
                 "--output_path", str(simplified),
                 "--MeshSimplification.target_face_ratio", "0.25",
             ], [simplified])
-            textured = dense / "textured.obj"\n            texture_prefix = dense / "textured"
+            texture_prefix = dense / "textured"
+            textured = dense / "textured.obj"
             self.run_stage("mesh_texturing", [
                 self.colmap, "mesh_texturer",
                 "--workspace_path", str(dense),
                 "--input_path", str(simplified),
-                "--output_path", str(textured),
+                "--output_path", str(texture_prefix),
             ], [textured])
             self.report["status"] = "completed"
-            self.report["outputs"] = {
-                "database": str(database),
-                "sparse_model": str(model),
+            self.report["outputs"].update({
                 "dense_workspace": str(dense),
                 "fused_point_cloud": str(fused),
                 "poisson_mesh": str(mesh),
                 "simplified_mesh": str(simplified),
                 "textured_obj": str(textured),
-            }
-            self.log("Pipeline completed. Component segmentation and GLB conversion are not included.")
+            })
+            self.log("Dense reconstruction and texturing completed. Component segmentation and GLB conversion are not included.")
             return 0
         except Exception as exc:
             self.report["status"] = "failed"
@@ -232,8 +239,9 @@ def main() -> int:
     parser.add_argument("--images", required=True, type=Path, help="Directory containing the staged vehicle images.")
     parser.add_argument("--output", required=True, type=Path, help="Private output directory for this job.")
     parser.add_argument("--colmap", default="colmap", help="COLMAP executable name/path.")
+    parser.add_argument("--dense", action="store_true", help="Run CUDA-dependent dense MVS, meshing, and texturing stages.")
     args = parser.parse_args()
-    pipeline = Pipeline(args.images, args.output, args.colmap)
+    pipeline = Pipeline(args.images, args.output, args.colmap, args.dense)
     try:
         return pipeline.execute()
     except Exception as exc:
