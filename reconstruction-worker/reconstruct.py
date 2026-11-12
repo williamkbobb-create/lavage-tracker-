@@ -14,6 +14,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from worker_quality import analyze_images
+
 SUPPORTED = {".jpg", ".jpeg", ".png"}
 
 
@@ -131,6 +133,7 @@ class Pipeline:
             raise RuntimeError(f"COLMAP executable not found: {self.colmap}")
         images = discover_images(self.images)
         self.report["input"]["image_count"] = len(images)
+        self.report["input"]["quality"] = analyze_images(images)
         self.report["input"]["total_bytes"] = sum(p.stat().st_size for p in images)
         self.log(f"Validated {len(images)} images in {self.images}")
 
