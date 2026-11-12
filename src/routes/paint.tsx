@@ -104,7 +104,6 @@ function Vehicle({ colours, doorsOpen, bonnetOpen, bootOpen, onMaterialCounts }:
 
   return <primitive object={model} />;
 }
-useGLTF.preload(MODEL_URL);
 
 function PaintStudioPage() {
   const [mounted, setMounted] = useState(false);
