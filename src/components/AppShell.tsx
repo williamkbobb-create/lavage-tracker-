@@ -37,7 +37,7 @@ export function AppShell({ children, showStaffLink = false }: { children: ReactN
       >
         <div className="mx-auto flex max-w-5xl gap-2 py-3">
           <Link
-            to="/"
+            to="/track"
             activeOptions={{ exact: true }}
             className="flex-1 rounded-lg border border-transparent px-4 py-3 text-center text-xs font-semibold transition-colors hover:bg-white/[0.04] data-[status=active]:border-[#C6A45B]/40 data-[status=active]:bg-[#C6A45B]/10 data-[status=active]:text-[#E4C779] data-[status=inactive]:text-[#9C9A95]"
           >
