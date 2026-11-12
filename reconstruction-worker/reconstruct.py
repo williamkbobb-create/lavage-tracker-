@@ -179,6 +179,7 @@ class Pipeline:
                 "--input_path", str(model),
                 "--output_path", str(dense),
                 "--output_type", "COLMAP",
+                "--max_image_size", "2000",
             ])
             self.run_stage("dense_stereo", [
                 self.colmap, "patch_match_stereo",
@@ -207,23 +208,17 @@ class Pipeline:
                 "--output_path", str(simplified),
                 "--MeshSimplification.target_face_ratio", "0.25",
             ], [simplified])
-            texture_prefix = dense / "textured"
-            textured = texture_prefix / "mesh.ply"
-            self.run_stage("mesh_texturing", [
-                self.colmap, "mesh_texturer",
-                "--workspace_path", str(dense),
-                "--input_path", str(simplified),
-                "--output_path", str(texture_prefix),
-            ], [textured])
-            self.report["status"] = "completed"
+            self.report["status"] = "mesh_complete"
             self.report["outputs"].update({
                 "dense_workspace": str(dense),
                 "fused_point_cloud": str(fused),
                 "poisson_mesh": str(mesh),
                 "simplified_mesh": str(simplified),
-                "textured_mesh": str(textured),
             })
-            self.log("Dense reconstruction and texturing completed. Component segmentation and GLB conversion are not included.")
+            self.report["limitations"].append(
+                "The pinned COLMAP 3.9.1 build does not expose the newer mesh_texturer command in its documented CLI. Texture baking and GLB export remain separate milestones."
+            )
+            self.log("Dense reconstruction and mesh generation completed. Texture baking, GLB conversion, component segmentation, and rigging are not included.")
             return 0
         except Exception as exc:
             self.report["status"] = "failed"
